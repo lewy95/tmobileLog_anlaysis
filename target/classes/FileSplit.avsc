@@ -1,0 +1,18 @@
+{"namespace": "rpc.domain",
+ "type": "record",
+ "name": "FileSplit",
+ "fields": [
+     {
+        "name": "path",
+        "type": ["string", "null"]
+     },
+     {
+        "name": "start",
+        "type": ["long", "null"]
+     },
+     {
+        "name": "length",
+        "type": ["long", "null"]
+     }
+     ]
+}

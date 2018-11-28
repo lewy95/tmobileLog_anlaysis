@@ -1,0 +1,75 @@
+{"namespace": "rpc.domain",
+ "type": "record",
+ "name": "HttpAppHost",
+ "fields": [
+     {
+        "name": "reportTime",
+        "type": ["string", "null"]
+     },
+     {
+        "name": "appType",
+        "type": ["int", "null"]
+     },
+     {
+        "name": "appSubType",
+        "type": ["string", "null"]
+     },
+     {
+        "name": "userIp",
+        "type": ["string", "null"]
+     },
+     {
+        "name": "userPort",
+        "type": ["int", "null"]
+     },
+     {
+         "name": "appServerIp",
+         "type": ["string", "null"]
+     },
+     {
+         "name": "appServerPort",
+         "type": ["string", "null"]
+     },
+     {
+         "name": "host",
+         "type": ["string", "null"]
+     },
+     {
+         "name": "cellid",
+         "type": ["string", "null"]
+     },
+     {
+         "name": "attemps",
+         "type": ["int", "null"]
+     },
+     {
+         "name": "accepts",
+         "type": ["int", "null"]
+     },
+     {
+         "name": "trafficUL",
+         "type": ["long", "null"]
+     },
+     {
+         "name": "tracfficDL",
+         "type": ["long", "null"]
+     },
+     {
+         "name": "retranUL",
+         "type": ["long", "null"]
+     },
+     {
+         "name": "retranDL",
+         "type": ["long", "null"]
+     },
+     {
+         "name": "failCount",
+         "type": ["int", "null"]
+     },
+     {
+         "name": "transDelay",
+         "type": ["long", "null"]
+     }
+     ]
+
+}

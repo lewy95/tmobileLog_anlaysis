@@ -1,0 +1,10 @@
+rpc\domain\FileSplit$Builder.class
+rpc\domain\HttpAppHost.class
+rpc\service\RpcFileSplit.class
+rpc\service\RpcHttpAppHost.class
+rpc\service\RpcFileSplit$Callback.class
+rpc\service\RpcHttpAppHost$Callback.class
+rpc\domain\FileSplit$1.class
+rpc\domain\HttpAppHost$Builder.class
+rpc\domain\FileSplit.class
+rpc\domain\HttpAppHost$1.class

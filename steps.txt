@@ -1,0 +1,122 @@
+﻿tmobile项目技术架构
+1、maven
+利用maven工程管理项目，主要管理jar包，生成avro和rpc相关文件
+2、avro、rpc
+利用avro的序列化实现节点之间的rpc通信
+3、zookeeper
+在分布式环境下解决节点之间的协调问题
+tmobile工程架构
+1、tmobileZk合同工程，此工程作用：
+（1）管理整个项目的pom.xml文件
+（2）定义全局变量参数及工具类
+（3）定义avro模式文件和rpc相关文件
+2、jobtracker工程，此工程作用：
+（1）定期扫描指定目录下的日志文件
+（2）根据用户定义的参数，对文件进行逻辑切块
+（3）根据切块数量生成对应的任务数量（一个切块就是一个任务）
+（4）将任务发送给一级引擎节点，通过zookeeper获取一级引擎的信息及状态来分配任务
+3、engine101工程，此工程的作用：
+（1）通过zookeeper，注册自身的节点信息和状态，便于集群其他机器进行相关业务处理
+（2）接收jobtracker发来的任务，根据任务对文件处理
+（3）将文件数据进行清洗和整理（根据tmobile业务进行整理 mapper）
+（4）将处理完的数据发给二级引擎，二级引擎做最后的合并
+4、engine2工程，此工程作用：
+（1）接收一级引擎发送的数据。
+（2）对数据进行最后的合并
+（3）将数据落地到数据库
+
+avro模式文件，包名rpc.domain
+	FileSplit
+		字段：length、start、path
+	HttpAppHost
+rpc存根：
+	RpcFileSplit.avdl
+		方法：sendFileSplit
+	RpcSendHttpAppHost.avdl
+		方法1：sendHttpAppHost
+		方法2：sendMap
+env.properties
+	tmobile.dir=D:\\tmobile\\data //日志文件路径
+	tmobile.scanninginterval=30000 //扫描目录间隔时间
+	tmobile.blocksize=30000000 //切片大小
+	tmobile.zk.serverip=192.168.157.128:2181,192.168.157.132.133:2181,192.168.157.133:2181
+		//zookeeper集群的ip
+	tmobile.zk.sessiontimeout=30000 //会话超时时间
+	tmobile.zk.jobtrackerpath=/jobtracker
+	tmobile.zk.engine1path=/engine1
+	tmobile.zk.engine2path=/engine2 //机器的节点路径
+
+全局工具类：cn.xzxy.lewy.commen，GlobleEnv.java
+	方法一：initParam();读完后将配置信息保存在类的内部，并提供get()方法
+	方法二：connectZkServer（）;连接zookeeper的方法
+
+引擎一工具类：cn.xzxy.lewy.commen，类名OwnEnv
+	读取配置文件，并添加两个队列：
+	队列1：用来存储jobtracker发送的切片对象
+	队列2：处理完的数据需要放入map中，并将map存入此队列，map的数据类型<CharSequence,HttpAppHost>
+
+定期扫描日志文件
+	jobtracker中，创建包cn.xzxy.lewy.file，创建一个线程类FileHandle，每隔一段时间，扫描目录，
+	如果发现标识文件，则证明此文件未读取，读取此文件，并将此文件放入队列中，同时删除标识文件
+	定期扫描：将上面代码放入死循环，并sleep指定时间
+
+逻辑切块
+	创建线程类：FileToBlock
+	从队列中读取文件，切成几块？文件大小/块大小，向上取整
+	对文件块进行分装，最后一块问题，长度为：文件大小-起始位置
+	最后，将切块放入队列，并打桩
+
+启动类：cn.xzxy.lewy.commen，类名为Start
+	注意，两个线程都要启动，通过线程池启动
+	如果控制台打印出所有切块，则证明逻辑切块成功
+
+jobtracker将数据传给一级引擎，如何获取一级引擎的ip和端口号？
+一级引擎在zookeeper中注册自己的节点和数据
+	包：cn.xzxy.lewy.zk，线程类名：zkConnectRunner，连接zk，并注册自己的节点（/engine1/node01），
+	需要判断父节点是否存在方法：.exists(/engine1),如果不存在，则创建持久节点
+	获取本机ip方法：InetAddress.getLocalHost.getHostAddress()
+	再创建子节点，创建完之后，创建启动类：cn.xzxy.lewy.commen，类名为Start，进行测试，
+	看zookeeper中是否出来对应节点
+
+连接jobtracker和一级引擎，通过rpc
+	一级引擎为服务端，jobtracker为客户端
+
+	首先，cn.xzxy.lewy.rpc中一级引擎实现接口，cn.xzxy.lewy.rpc接口中暂时直接打印切片
+	然后，一级引擎创建rpc的服务端的线程类，交给线程池
+
+	jobtracker作为客户端：
+	包名：cn.xzxy.lewy.zk，类名zkConnectRunner
+	首先，通过zookeeper获取引擎1节点下所有子节点，循环遍历子节点，并在每个循环中启动一个客户端的线程类(RpcClient)
+
+	然后，创建RpcClient类，根据参数，获取节点的数据，根据ip和端口号，将切片通过rpc发送给客户端
+
+	将zkConnectRunner加入线程池，并测试，如果控制台可以打印一级引擎收到的切片，说联通成功
+
+到此，jobtracker和一级引擎联通
+
+一级引擎处理文件块，相当于Mapper
+	rpc实现类中，将收到的切片存入一级引擎的队列中
+	创建线程类，包：cn.xzxy.lewy.mapper，类名MapperRunner，从队列中取出切片，首先需要对切片进行位置追溯，向前追溯
+	通过channel将整个文件放入通道中，将position设置为start，进行判断，如果是换行"\n"，则start为position+1，否则继续向前，end同理
+
+jobtracker根据一级引擎的繁忙状态发送数据
+	一级引擎在zk中注册自己的状态，jobtracker通过监听器监听并获取状态信息，进行处理
+
+连接一级引擎和二级引擎
+	二级引擎：实现存根接口：暂时只打印cn.xzxy.lewy.rpc,
+	在zk上注册自己的ip和端口号cn.xzxy.lewy.zk，
+		zkConnectRunner
+	写rpc服务端cn.xzxy.lewy.rpc，RpcServer
+	加入线程池cn.xzxy.lewy.commen，Start
+
+	一级引擎：rpc服务端
+	RpcClient，线程类，从zk获取二级引擎的信息，从队列中获取map(可能有多个)并发送给二级引擎
+	加入线程池，进行测试
+
+	二级引擎：将收到的map存入队列中，如果队列中的map达到4个时，开始合并
+
+	包cn.xzxy.lewy.reduce,ReducerRunner,
+	从队列中获取map，可以通过循环，poll()如果获取完，则返回值为null，然后首先创建一个结果集map，将所有map合并到此结果集map中
+
+	最后，将map落地到数据库中(需要自己建数据库，此处未完成)
+	

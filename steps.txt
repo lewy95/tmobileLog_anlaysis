@@ -118,5 +118,5 @@ jobtracker根据一级引擎的繁忙状态发送数据
 	包cn.xzxy.lewy.reduce,ReducerRunner,
 	从队列中获取map，可以通过循环，poll()如果获取完，则返回值为null，然后首先创建一个结果集map，将所有map合并到此结果集map中
 
-	最后，将map落地到数据库中(需要自己建数据库，此处未完成)
+	最后，将map落地到数据库中.
 	
